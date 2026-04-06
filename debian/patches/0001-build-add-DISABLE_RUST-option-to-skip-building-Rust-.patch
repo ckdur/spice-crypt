@@ -8,7 +8,7 @@ the package can be built without compiling the Rust extension via
 maturin. Also disable the tests which depend on the Rust extension,
 if it's not available at runtime.
 
-Forwarded: no
+Forwarded: https://github.com/jtsylve/spice-crypt/pull/2
 Signed-off-by: Christopher Obbard <obbardc@debian.org>
 ---
  REUSE.toml                   |  5 +++++
