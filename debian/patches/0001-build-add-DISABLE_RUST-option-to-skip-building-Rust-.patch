@@ -1,0 +1,136 @@
+From: Christopher Obbard <obbardc@debian.org>
+Date: Mon, 6 Apr 2026 02:30:55 +0100
+Subject: build: add DISABLE_RUST option to skip building Rust extension
+
+Add a PEP 517 build backend wrapper that checks the DISABLE_RUST
+environment variable. When set it delegates to setuptools so that
+the package can be built without compiling the Rust extension via
+maturin. Also disable the tests which depend on the Rust extension,
+if it's not available at runtime.
+
+Forwarded: no
+Signed-off-by: Christopher Obbard <obbardc@debian.org>
+---
+ REUSE.toml                   |  5 +++++
+ _build_wrapper.py            | 34 ++++++++++++++++++++++++++++++++++
+ pyproject.toml               |  8 ++++++--
+ tests/test_pspice_decrypt.py | 11 +++++++++++
+ 4 files changed, 56 insertions(+), 2 deletions(-)
+ create mode 100644 _build_wrapper.py
+
+diff --git a/REUSE.toml b/REUSE.toml
+index 5ac0351..9bc66cc 100644
+--- a/REUSE.toml
++++ b/REUSE.toml
+@@ -5,6 +5,11 @@ path = ["README.md", "CLAUDE.md", "uv.lock", ".gitignore", ".github/FUNDING.yml"
+ SPDX-FileCopyrightText = "© 2026 Joe T. Sylve, Ph.D. <joe.sylve@gmail.com>"
+ SPDX-License-Identifier = "AGPL-3.0-or-later"
+ 
++[[annotations]]
++path = ["_build_wrapper.py"]
++SPDX-FileCopyrightText = "© 2026 Christopher Obbard <obbardc@debian.org>"
++SPDX-License-Identifier = "AGPL-3.0-or-later"
++
+ [[annotations]]
+ path = ["SPECIFICATIONS/ltspice.md", "SPECIFICATIONS/pspice.md", "SPECIFICATIONS/pspice-attack-summary.md"]
+ SPDX-FileCopyrightText = "© 2026 Joe T. Sylve, Ph.D. <joe.sylve@gmail.com>"
+diff --git a/_build_wrapper.py b/_build_wrapper.py
+new file mode 100644
+index 0000000..5b96d38
+--- /dev/null
++++ b/_build_wrapper.py
+@@ -0,0 +1,34 @@
++# SPDX-FileCopyrightText: © 2026 Christopher Obbard <obbardc@debian.org>
++#
++# SPDX-License-Identifier: AGPL-3.0-or-later
++
++"""PEP 517 build backend wrapper.
++
++Set ``DISABLE_RUST=1`` to build without the Rust extension
++(using setuptools). The default is to build with maturin/Rust.
++"""
++
++import os
++
++if os.environ.get("DISABLE_RUST"):
++    from setuptools.build_meta import (
++        build_editable,
++        build_sdist,
++        build_wheel,
++        get_requires_for_build_editable,
++        get_requires_for_build_sdist,
++        get_requires_for_build_wheel,
++        prepare_metadata_for_build_editable,
++        prepare_metadata_for_build_wheel,
++    )
++else:
++    from maturin import (
++        build_editable,
++        build_sdist,
++        build_wheel,
++        get_requires_for_build_editable,
++        get_requires_for_build_sdist,
++        get_requires_for_build_wheel,
++        prepare_metadata_for_build_editable,
++        prepare_metadata_for_build_wheel,
++    )
+diff --git a/pyproject.toml b/pyproject.toml
+index 0bc4dac..99cb3bc 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -42,13 +42,17 @@ dev = [
+ ]
+ 
+ [build-system]
+-requires = ["maturin>=1,<2"]
+-build-backend = "maturin"
++requires = ["maturin>=1,<2", "setuptools"]
++build-backend = "_build_wrapper"
++backend-path = ["."]
+ 
+ [tool.maturin]
+ module-name = "spice_crypt.pspice._aes_brute"
+ python-source = "."
+ 
++[tool.setuptools.packages.find]
++include = ["spice_crypt*"]
++
+ [tool.pytest.ini_options]
+ addopts = "-p no:cacheprovider"
+ 
+diff --git a/tests/test_pspice_decrypt.py b/tests/test_pspice_decrypt.py
+index 7572b34..0bfcf3e 100644
+--- a/tests/test_pspice_decrypt.py
++++ b/tests/test_pspice_decrypt.py
+@@ -23,6 +23,15 @@ from tests.conftest import PLAINTEXT_BODY, extract_body
+ 
+ DATA_DIR = Path(__file__).parent / "data" / "pspice"
+ 
++try:
++    from spice_crypt.pspice._aes_brute import search_range as _native_search  # noqa: F401
++
++    _has_rust = True
++except ImportError:
++    _has_rust = False
++
++requires_rust = pytest.mark.skipif(not _has_rust, reason="Rust extension not available")
++
+ USER_KEY = b"0123456789abcdefghijklmnopqrstu"
+ 
+ 
+@@ -115,6 +124,7 @@ class TestPSpiceFileParser:
+ class TestKeyRecovery:
+     """Test Mode 4 AES brute-force key recovery."""
+ 
++    @requires_rust
+     def test_recover_user_key(self):
+         from spice_crypt.pspice import recover_mode4_key
+ 
+@@ -123,6 +133,7 @@ class TestKeyRecovery:
+         assert result is not None
+         assert result.user_key_full == USER_KEY
+ 
++    @requires_rust
+     def test_recover_no_user_key_raises(self):
+         from spice_crypt.pspice import recover_mode4_key
+ 

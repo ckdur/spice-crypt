@@ -1,0 +1,36 @@
+Source: spice-crypt
+Section: electronics
+Maintainer: Debian Electronics Team <pkg-electronics-devel@lists.alioth.debian.org>
+Uploaders: Christopher Obbard <obbardc@debian.org>
+Build-Depends:
+ debhelper-compat (= 13),
+ dh-sequence-python3,
+ help2man,
+ pybuild-plugin-pyproject,
+ python3-all,
+ python3-pytest,
+ python3-setuptools,
+Standards-Version: 4.7.2
+Homepage: https://github.com/jtsylve/spice-crypt
+Vcs-Browser: https://salsa.debian.org/electronics-team/spice-crypt
+Vcs-Git: https://salsa.debian.org/electronics-team/spice-crypt.git
+
+Package: spice-crypt
+Architecture: all
+Depends:
+ ${python3:Depends},
+ ${shlibs:Depends},
+ ${misc:Depends},
+Description: tool to decrypt encrypted SPICE model files
+ SpiceCrypt is a Python library and command-line tool for decrypting
+ encrypted SPICE model files used by LTspice and PSpice simulators.
+ .
+ It supports multiple encryption formats, including LTspice text and
+ binary formats as well as all PSpice encryption modes, with automatic
+ format detection. The tool provides both a CLI and a Python API for
+ streaming and in-memory decryption, allowing integration into custom
+ engineering workflows.
+ .
+ By enabling access to lawfully obtained encrypted models, SpiceCrypt
+ restores interoperability between different circuit simulation tools,
+ including open-source simulators such as NGSpice and PySpice.
