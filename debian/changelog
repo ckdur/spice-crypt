@@ -1,5 +1,5 @@
-spice-crypt (2.0.2-1) UNRELEASED; urgency=medium
+spice-crypt (2.0.2-1) unstable; urgency=medium
 
   * Initial release. (Closes: #1132815)
 
- -- Christopher Obbard <obbardc@debian.org>  Mon, 06 Apr 2026 01:56:53 +0100
+ -- Christopher Obbard <obbardc@debian.org>  Mon, 06 Apr 2026 03:16:16 +0100
