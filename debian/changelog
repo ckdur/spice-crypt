@@ -1,3 +1,10 @@
+spice-crypt (2.0.3-1) unstable; urgency=medium
+
+  * New upstream version 2.0.3
+  * d/patches: remove patches applied upstream
+
+ -- Christopher Obbard <obbardc@debian.org>  Fri, 10 Apr 2026 20:58:23 +0100
+
 spice-crypt (2.0.2-2) unstable; urgency=medium
 
   * d/patches: add link to upstream pull request
