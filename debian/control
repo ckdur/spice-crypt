@@ -8,15 +8,20 @@ Build-Depends:
  help2man,
  pybuild-plugin-pyproject,
  python3-all,
+ python3-maturin,
  python3-pytest,
- python3-setuptools,
+ cargo,
+ rustc,
+ librust-cpufeatures-dev,
+ librust-pyo3-dev,
+ librust-rayon-dev,
 Standards-Version: 4.7.4
 Homepage: https://github.com/jtsylve/spice-crypt
 Vcs-Browser: https://salsa.debian.org/electronics-team/spice-crypt
 Vcs-Git: https://salsa.debian.org/electronics-team/spice-crypt.git
 
 Package: spice-crypt
-Architecture: all
+Architecture: any
 Depends:
  ${python3:Depends},
  ${shlibs:Depends},

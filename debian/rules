@@ -3,9 +3,7 @@
 include /usr/share/dpkg/pkg-info.mk
 
 export PYBUILD_NAME=spice-crypt
-
-# Disable the Rust extension as we're not able to build it in Debian yet.
-export DISABLE_RUST=1
+export MATURIN_NO_INSTALL_RUST=1
 
 PY3VER := $(shell py3versions -d | sed 's/^python//')
 PYBUILD_DIR := .pybuild/cpython3_$(PY3VER)_spice-crypt
@@ -14,6 +12,21 @@ BUILT_PYTHONPATH := $(PYBUILD_DIR)/build
 
 %:
 	dh $@ --buildsystem=pybuild
+
+override_dh_auto_configure:
+	mkdir -p .cargo
+	printf '%s\n' \
+		'[net]' \
+		'offline = true' \
+		'' \
+		'[source.crates-io]' \
+		'replace-with = "debian"' \
+		'' \
+		'[source.debian]' \
+		'directory = "/usr/share/cargo/registry"' \
+		> .cargo/config.toml
+	rm -f Cargo.lock
+	cargo generate-lockfile --offline
 
 override_dh_auto_build:
 	dh_auto_build

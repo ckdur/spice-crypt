@@ -1,1 +1,2 @@
-0001-build-add-DISABLE_RUST-option-to-skip-building-Rust-.patch
+0001-Cargo.toml-downgrade-cpufeatures-to-match-Debian-pac.patch
+0002-Cargo.toml-drop-pyo3-generate-import-lib-feature.patch

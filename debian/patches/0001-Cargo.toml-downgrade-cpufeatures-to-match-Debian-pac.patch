@@ -1,0 +1,28 @@
+From: Christopher Obbard <obbardc@debian.org>
+Date: Fri, 10 Apr 2026 13:23:11 +0100
+Subject: Cargo.toml: downgrade cpufeatures to match Debian packaged version
+
+Downgrade cpufeatures from 0.3 to 0.2 to use the version available in
+Debian (librust-cpufeatures-dev).
+
+No known functional impact.
+
+Forwarded: not-needed
+Signed-off-by: Christopher Obbard <obbardc@debian.org>
+---
+ Cargo.toml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/Cargo.toml b/Cargo.toml
+index dd4ea72..9cf0dcc 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -15,7 +15,7 @@ crate-type = ["cdylib"]
+ [dependencies]
+ pyo3 = { version = "0.28", features = ["abi3-py310", "generate-import-lib"] }
+ rayon = "1"
+-cpufeatures = "0.3"
++cpufeatures = "0.2"
+ 
+ [profile.release]
+ codegen-units = 1
