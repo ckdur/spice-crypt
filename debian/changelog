@@ -1,3 +1,11 @@
+spice-crypt (2.0.2-2) unstable; urgency=medium
+
+  * d/patches: add link to upstream pull request
+  * d/control: bump Standards-Version to 4.7.4
+  * build Rust extension to enable Mode 4 key recovery
+
+ -- Christopher Obbard <obbardc@debian.org>  Fri, 10 Apr 2026 13:54:01 +0100
+
 spice-crypt (2.0.2-1) unstable; urgency=medium
 
   * Initial release. (Closes: #1132815)
