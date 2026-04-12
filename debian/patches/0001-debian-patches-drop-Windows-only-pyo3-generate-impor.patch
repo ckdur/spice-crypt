@@ -1,0 +1,35 @@
+From: Christopher Obbard <obbardc@debian.org>
+Date: Sun, 12 Apr 2026 06:26:55 +0100
+Subject: debian/patches: drop Windows-only pyo3 generate-import-lib
+ dependency
+
+Remove the upstream cfg(windows) pyo3 dependency enabling the
+generate-import-lib feature when generating Cargo.lock for the Debian
+package.
+
+This feature is only needed for Windows cross-compilation with maturin
+and is not required for Debian Linux builds. Keeping it causes
+cargo generate-lockfile --offline to fail during dependency resolution
+in Debian even though the dependency is Windows-only.
+
+Forwarded: not-needed
+Signed-off-by: Christopher Obbard <obbardc@debian.org>
+---
+ Cargo.toml | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/Cargo.toml b/Cargo.toml
+index 3de5879..ea8167e 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -24,8 +24,8 @@ cpufeatures = "0.2"
+ # and macOS builds. pyo3 main has deprecated this feature in favor of
+ # raw-dylib linking — revisit once that ships in a pyo3 release and maturin
+ # drops the stale interpreter-presence check.
+-[target.'cfg(windows)'.dependencies]
+-pyo3 = { version = "0.28", features = ["generate-import-lib"] }
++#[target.'cfg(windows)'.dependencies]
++#pyo3 = { version = "0.28", features = ["generate-import-lib"] }
+ 
+ 
+ [profile.release]
