@@ -1,3 +1,11 @@
+spice-crypt (2.0.4-1) unstable; urgency=medium
+
+  * New upstream version 2.0.4
+  * d/patches: Add patch to drop Windows pyo3 generate-import-lib dep
+  * d/control: replace python3-all with python3-dev
+
+ -- Christopher Obbard <obbardc@debian.org>  Sun, 12 Apr 2026 06:36:05 +0100
+
 spice-crypt (2.0.3-1) unstable; urgency=medium
 
   * New upstream version 2.0.3
