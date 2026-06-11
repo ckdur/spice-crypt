@@ -26,6 +26,11 @@ if TYPE_CHECKING:
 
 _PAD_SENTINEL = b" $jbs$"
 
+# Bytes 62-63 of a non-final (overflow) block, written by the encoder when a
+# plaintext line is longer than the 62-byte payload and continues into the
+# next block.
+_OVERFLOW_MARKER = b"$+"
+
 
 def _make_cipher(mode: int, short_key: bytes):
     """Instantiate and key the correct cipher engine for *mode*."""
@@ -56,18 +61,50 @@ def _decrypt_64_block(cipher, mode: int, data: bytes) -> bytes:
     return bytes(result)
 
 
-def _extract_plaintext(block: bytes) -> bytes:
-    """Extract the plaintext content from a decrypted 64-byte block.
+def _split_block(block: bytes) -> tuple[bytes, bool]:
+    """Split a decrypted 64-byte block into ``(content, line_complete)``.
 
-    The content occupies bytes 0-61.  If the `` $jbs$`` padding sentinel
-    is present, content is truncated at the sentinel.
+    A single plaintext line may span several blocks.  The encoder fills each
+    block with up to 62 bytes of line content (bytes 0-61); when content
+    remains it writes the ``$+`` overflow marker into bytes 62-63 and
+    continues in the next block.  The *final* block of a line is padded with
+    the `` $jbs$`` sentinel followed by random fill, unless the content (plus
+    its terminating carriage return) happens to fill the payload exactly.
+
+    Returns the line content carried by this block and whether the block
+    terminates the line.  Continuation blocks return ``line_complete=False``
+    and their content is concatenated by the caller.
     """
-    content = block[:62]
-    idx = content.find(_PAD_SENTINEL)
+    payload = block[:62]
+
+    # Intact padding sentinel within the payload: content ends before it.
+    idx = payload.find(_PAD_SENTINEL)
     if idx >= 0:
-        content = content[:idx]
-    # Strip trailing null bytes
-    return content.rstrip(b"\x00")
+        return payload[:idx].rstrip(b"\x00"), True
+
+    # Carriage-return line terminator (CRLF source files).  Everything after
+    # it is padding — a possibly-truncated sentinel plus random fill.  Bytes
+    # 62-63 are searched too: when the line content plus its ``\r`` fills the
+    # block exactly (63 or 64 bytes), there is no room for the sentinel and the
+    # terminator lands in the bytes normally used for the ``$+`` overflow
+    # marker.  An overflow (continuation) block instead holds ``$+`` there, so
+    # it has no ``\r`` and falls through to the overflow case below.
+    cr = block.find(b"\r")
+    if cr >= 0:
+        return block[: cr + 1], True
+
+    # Sentinel truncated at the payload/byte-62 boundary on a line with no
+    # carriage return: only a prefix `` $jbs`` of the 6-byte sentinel survives
+    # at the tail of the payload (bytes 62-63 are overwritten).  Confirm it is
+    # genuine padding via the next sentinel byte, and require that this is not
+    # an overflow block (whose bytes 62-63 are the ``$+`` marker).
+    if block[62:64] != _OVERFLOW_MARKER:
+        for n in range(len(_PAD_SENTINEL) - 1, 1, -1):
+            if payload.endswith(_PAD_SENTINEL[:n]) and block[62] == _PAD_SENTINEL[n]:
+                return payload[:-n].rstrip(b"\x00"), True
+
+    # Overflow block: 62 bytes of content with more to come in the next block.
+    return payload.rstrip(b"\x00"), False
 
 
 class PSpiceFileParser:
@@ -110,7 +147,7 @@ class PSpiceFileParser:
             The return value (via ``StopIteration``) is ``(0, 0)``
             (PSpice files have no verification checksums).
         """
-        continuation = b""
+        line_buffer = b""
         in_encrypted_block = False
         cipher = None
         mode = 0
@@ -137,10 +174,10 @@ class PSpiceFileParser:
 
             # Check for block end marker
             if stripped.startswith("$CDNENCFINISH"):
-                # Flush any pending continuation line
-                if continuation:
-                    yield continuation + b"\n"
-                    continuation = b""
+                # Flush any pending (incomplete) line
+                if line_buffer:
+                    yield line_buffer + b"\n"
+                    line_buffer = b""
                 in_encrypted_block = False
                 cipher = None
                 continue
@@ -171,19 +208,16 @@ class PSpiceFileParser:
                 is_header = False
                 continue
 
-            content = _extract_plaintext(plaintext_block)
+            # A plaintext line may span several blocks; accumulate content
+            # until a block terminates the line.
+            content, line_complete = _split_block(plaintext_block)
+            line_buffer += content
+            if line_complete:
+                yield line_buffer + b"\n"
+                line_buffer = b""
 
-            # Handle continuation lines: if the decrypted content starts
-            # with '+', it's a continuation of the previous line.
-            if content.startswith(b"+"):
-                continuation += content[1:]
-            else:
-                if continuation:
-                    yield continuation + b"\n"
-                continuation = content
-
-        # Flush final continuation
-        if continuation:
-            yield continuation + b"\n"
+        # Flush any trailing line
+        if line_buffer:
+            yield line_buffer + b"\n"
 
         return (0, 0)

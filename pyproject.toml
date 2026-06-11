@@ -4,15 +4,15 @@
 
 [project]
 name = "spice-crypt"
-version = "2.0.4"
-description = "A library for decrypting LTspice® and PSpice® encrypted files"
+version = "3.0.1"
+description = "A library for decrypting LTspice®, PSpice®, and QSPICE® encrypted files"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "AGPL-3.0-or-later"
 authors = [
     { name = "Joe T. Sylve, Ph.D.", email = "joe.sylve@gmail.com" },
 ]
-keywords = ["ltspice", "pspice", "spice", "decryption", "eda", "circuit-simulation"]
+keywords = ["ltspice", "pspice", "qspice", "spice", "decryption", "eda", "circuit-simulation"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Science/Research",
@@ -58,3 +58,11 @@ line-length = 100
 [tool.ruff.lint]
 select = ["E", "W", "F", "I", "UP", "B", "SIM", "TCH", "RUF"]
 ignore = ["RUF012"]
+
+[tool.ruff.lint.per-file-ignores]
+# The QSPICE detokenizer deliberately embeds QSPICE's Windows-1252 device-prefix
+# and operator characters (Ã, Ø, ¥, ×, «, », ´, µ).  The ambiguous-Unicode lints
+# (RUF001/002/003) flag exactly the characters this code must recognize.
+"spice_crypt/qspice/cipher.py" = ["RUF001", "RUF002", "RUF003"]
+"scripts/gen_qspice_testdata.py" = ["RUF001", "RUF002", "RUF003"]
+"tests/test_qspice_decrypt.py" = ["RUF001", "RUF002", "RUF003"]

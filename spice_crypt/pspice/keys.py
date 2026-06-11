@@ -86,7 +86,7 @@ def derive_keys(
     """Derive the short and extended key strings for a given mode.
 
     Args:
-        mode: Encryption mode (0--5).
+        mode: Encryption mode (0-5).
         version_str: Version digit string from the marker.
         user_key_bytes: Optional 31-byte XOR key for mode 4.
 

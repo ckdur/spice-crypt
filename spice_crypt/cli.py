@@ -46,11 +46,15 @@ def _recover_key(args):
 def main():
     """Main entry point for the CLI."""
     parser = argparse.ArgumentParser(
-        description="SpiceCrypt - A tool for decrypting LTspice® and PSpice® encrypted files"
+        description=(
+            "SpiceCrypt - A tool for decrypting LTspice®, PSpice®, and QSPICE® encrypted files"
+        )
     )
     parser.add_argument(
         "input_file",
-        help="Path to the encrypted file to decrypt (LTspice encrypted format or raw hex)",
+        help=(
+            "Path to the encrypted file to decrypt (LTspice, PSpice, or QSPICE format, or raw hex)"
+        ),
     )
     parser.add_argument("-o", "--output", help="Output file path (default: print to stdout)")
     parser.add_argument(

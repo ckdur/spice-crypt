@@ -1,0 +1,10 @@
+.subckt FIRST 1 2
+.prot
+UUUUvvvvn2w,UQnnQYn,vKlUO2QlYOUv2wwmQv,m,mlv
+.unprot
+.ends FIRST
+.subckt SECOND 3 4
+.prot
+FFFFxxxxK2Fl2nV2YQVYKOOJ,VJQnnOYvlV,xnOnmvJm
+.unprot
+.ends SECOND

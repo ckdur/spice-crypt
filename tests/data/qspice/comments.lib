@@ -1,0 +1,7 @@
+* synthetic QSPICE test model
+*
+.subckt TEST_RES 1 2
+.prot
+,m,,,,,,,lUwVQnxVOOlVlnxlUvOUQKOQK2VQv2mlmJQ
+.unprot
+.ends TEST_RES

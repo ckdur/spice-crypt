@@ -1,0 +1,7 @@
+.subckt TOKENS vdd vss
+.prot
+,2Q,V2,Om,UOvmY,n2KxxxmlO,xYwK,VnKv2QwmmnlwQVwOYJnVJJJFxVnxxFK2KKVmYvlvvlK,J
+xlYwvln,UUlYQQUvVVnQlO,xUnwJYJOFmwlwvJw,UU2OVxK2lvKUxxOYYVKKUKn2KnUJwJxOxnwK
+OYnVVxQ,UvQvUwKYQUFUwYQQYOwVvKwnKlmwUnYQnJ2vQJm2YOwFwxvFKF22,KQnQx2Q2QnU
+.unprot
+.ends TOKENS
