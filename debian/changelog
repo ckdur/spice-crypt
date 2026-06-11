@@ -1,3 +1,10 @@
+spice-crypt (3.0.1-1) unstable; urgency=medium
+
+  * New upstream version 3.0.1
+  * d/clean: remove rust build artifacts
+
+ -- Christopher Obbard <obbardc@debian.org>  Thu, 11 Jun 2026 03:06:48 +0100
+
 spice-crypt (2.0.4-1) unstable; urgency=medium
 
   * New upstream version 2.0.4
