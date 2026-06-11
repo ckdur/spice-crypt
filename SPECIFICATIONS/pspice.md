@@ -1,6 +1,6 @@
 # PSpice® Encryption Specification
 
-**Version**: 1.0.0 ([changelog](#changelog))\
+**Version**: 1.1.0 ([changelog](#changelog))\
 **Author**: Joe T. Sylve, Ph.D. \<joe.sylve@gmail.com\> \
 **Repository**: https://github.com/jtsylve/spice-crypt
 
@@ -82,8 +82,10 @@ All six modes operate on **64-byte blocks**.  Each 64-byte block has the followi
 
 | Byte range | Size | Content |
 |-----------|------|---------|
-| 0–61 | 62 bytes | Payload (plaintext content + padding) |
-| 62–63 | 2 bytes | Unused (written as `0x24 0x2B` by the encoder, not checked during decryption) |
+| 0–61 | 62 bytes | Payload (line content and/or padding) |
+| 62–63 | 2 bytes | Overflow marker, padding tail, or line content/terminator (see [§2.2](#22-content-blocks)–[§2.4](#24-line-continuation)) |
+
+The two trailing bytes are **not** unused: their value depends on the role of the block, and decryption must examine them to reconstruct line boundaries ([§2.4](#24-line-continuation)).
 
 ### 2.1 Header Block
 
@@ -99,24 +101,33 @@ During decryption, the header block is decrypted and validated: the known prefix
 
 ### 2.2 Content Blocks
 
-After the header block, each subsequent encrypted block carries up to 62 bytes of plaintext content in bytes 0–61.  Bytes 62–63 are not used during decryption.
+After the header block, the encoder packs the plaintext **one source line at a time** into successive 64-byte blocks.  A line's bytes — its text plus the trailing carriage return inherited from CRLF source files (the line-feed itself is not stored) — are written 62 bytes at a time into bytes 0–61.  Each block is then either an *overflow* block, when 62 or more bytes of the line still remain, or a *final* block, which completes the line:
+
+- **Overflow block** — bytes 0–61 hold 62 bytes of line content and bytes 62–63 hold the marker `0x24 0x2B` (the ASCII string `$+`).  The line continues in the next block.
+- **Final block** — bytes 0–61 (and, when the line fills the block, bytes 62–63) hold the remaining line content followed by the padding described in [§2.3](#23-padding).
+
+Each netlist line therefore maps to one final block, optionally preceded by a single overflow block.  Block-level splitting occurs strictly at the 62-byte boundary, **mid-token if necessary** (for example a 70-character identifier is split after its 62nd byte, with the remaining 8 bytes carried into the next block): the encoder copies 62 raw bytes and does not seek a word boundary here.  Lines too long for two blocks are first broken into multiple netlist lines at the source level ([§2.4](#24-line-continuation)).
 
 ### 2.3 Padding
 
-When the plaintext content for a block is shorter than 62 bytes, the following padding scheme is applied:
+In a final block whose content does not fill the available space, the remainder is padded as follows:
 
 1. The 6-byte sentinel ` $jbs$` (space followed by `$jbs$`) is written immediately after the content.
-2. The remaining bytes (up to position 61) are filled with pseudo-random ASCII characters.  Each fill byte is generated as `(rand() & 0x0F) + base`, where `base` cycles through the values 65 (`A`) through 70 (`F`) in groups of six.
-3. Byte 62 is set to null (`0x00`), making the padded content null-terminated within the 63-byte region (bytes 0–62).  However, this null byte is then overwritten by the encoder when it writes bytes 62–63.
+2. The remaining bytes are filled with pseudo-random ASCII characters.  Each fill byte is generated as `(rand() & 0x0F) + base`, where `base` cycles through the values 65 (`A`) through 70 (`F`) in groups of six.  The fill extends through byte 62; byte 63 is left null (`0x00`).
 
-During decryption, the padding sentinel ` $jbs$` is searched within bytes 0–61 of each decrypted block.  If found, only the content before the sentinel is used.  Any remaining trailing null bytes are also stripped.
+Because the sentinel is written immediately after the content, it may **straddle the 62-byte payload boundary**: when the content leaves fewer than six bytes before byte 62, only a prefix of the sentinel (` $jbs`, ` $jb`, ` $j`, or ` $`) falls within bytes 0–61 and the remainder spills into bytes 62–63.  When the content together with its carriage return fills the block exactly (63 or 64 bytes), there is no room for the sentinel at all and the carriage return itself occupies byte 62 or 63.
+
+During decryption, a block terminates the current line if any of the following is found, in order: the full sentinel ` $jbs$` within bytes 0–61; a carriage return (`0x0D`) anywhere in bytes 0–63, with everything after it discarded as padding; or a truncated sentinel prefix at the tail of bytes 0–61 confirmed by the next sentinel byte at byte 62 (for source files with no carriage returns).  Otherwise the block is an overflow block — identified by the `$+` marker in bytes 62–63 — and its 62 content bytes are concatenated with the following block.  Any trailing null bytes are stripped.
 
 ### 2.4 Line Continuation
 
-PSpice plaintext lines longer than 62 characters are split across multiple blocks using a continuation mechanism.  The first block contains the beginning of the line.  Subsequent continuation blocks begin with the `+` character (ASCII 0x2B), signaling that their content should be appended to the previous line (with the leading `+` stripped).  Lines longer than 124 characters may span three or more blocks.
+Continuation operates at two independent levels.
 
-When a line exceeds 124 characters, the encoder searches for a natural break point (a space or comma) within the first 124 characters and splits there.
+**Block level.**  A netlist line longer than 62 bytes is split across an overflow block and a final block (see [§2.2](#22-content-blocks)).  There is no in-band continuation marker beyond the `$+` written into bytes 62–63 of the overflow block; decryption reconstructs the line by concatenating the overflow block's 62 content bytes with the final block.
 
+**Source level.**  Before block packing, the encoder breaks any netlist line of 125 bytes or more into shorter lines using ordinary SPICE continuation syntax: it scans the first 124 bytes for the last space or comma, truncates the line there, and emits the remainder as a new line prefixed with `+` (ASCII `0x2B`).  The process repeats until each line fits.  Each resulting line — including the `+` ones — is then packed into one or two blocks as above.
+
+Consequently a leading `+` on a decrypted line is **ordinary SPICE syntax**, a netlist-level continuation of the preceding logical line, whether it was present in the original source or inserted by the encoder.  It carries no meaning for block-level decoding and is preserved verbatim in the output; it must **not** be stripped or merged into the previous line.
 
 ## 3. Key Derivation
 
@@ -195,7 +206,7 @@ Each 64-byte encrypted block is processed as **8 independent DES-ECB blocks** of
 3. Decrypt (or encrypt) using the PSpice DES variant.
 4. Write the 64-bit result back as 8 little-endian bytes.
 
-The full 64-bit DES output is retained (unlike the LTspice variant, which truncates to 32 bits).
+The full 64-bit DES output is retained.
 
 ### 4.3 Deviations from Standard DES (FIPS 46-3)
 
@@ -263,7 +274,7 @@ The 64-entry Final Permutation is the inverse of the custom IP above:
 
 **Standard DES**: During key schedule generation, the two 28-bit halves (C and D) of the reduced key are **left-rotated** by the amounts in the standard rotation schedule: `[1,1,2,2,2,2,2,2,1,2,2,2,2,2,2,1]`.
 
-**PSpice variant**: The two 28-bit halves are **right-rotated** by the same amounts.  This is the same deviation found in the LTspice DES variant.
+**PSpice variant**: The two 28-bit halves are **right-rotated** by the same amounts.
 
 ```
 # Standard DES (left rotate):
@@ -489,6 +500,14 @@ For modes 1–5, the version suffix *N* = `atoi(version_string) + 999` is append
 
 
 ## Changelog
+
+### 1.1.0
+
+- Corrected the [block structure](#2-block-structure) chapter, which previously described bytes 62–63 as unused and the line-continuation scheme incorrectly:
+  - Bytes 62–63 are **not** unused; their value depends on the role of the block and decryption must examine them ([§2](#2-block-structure)).
+  - Documented the distinction between *overflow* blocks (62 content bytes followed by the `$+` marker in bytes 62–63) and *final* blocks ([§2.2](#22-content-blocks)).
+  - Clarified that the ` $jbs$` padding sentinel may **straddle the 62-byte payload boundary** or be absent entirely when the content plus its carriage return fills the block, and specified the full set of line-termination conditions ([§2.3](#23-padding)).
+  - Rewrote [line continuation](#24-line-continuation): block-level continuation is signalled by the `$+` overflow marker, not by a `+` prefix.  A leading `+` is ordinary SPICE continuation syntax — preserved verbatim, never stripped — and is inserted at the source level only for lines of 125 bytes or more.
 
 ### 1.0.0
 

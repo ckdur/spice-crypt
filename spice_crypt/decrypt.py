@@ -7,8 +7,8 @@ Top-level decryption dispatch.
 
 This module provides the public :func:`decrypt` and :func:`decrypt_stream`
 convenience functions which auto-detect the encryption format (LTspice
-text-based, LTspice® Binary File, or PSpice®) and delegate to the
-appropriate parser.
+text-based, LTspice® Binary File, PSpice®, or QSPICE® ``.prot`` protected
+blocks) and delegate to the appropriate parser.
 """
 
 import contextlib
@@ -59,6 +59,29 @@ def _try_pspice_format(file_obj, user_key=None):
     return None
 
 
+def _try_qspice_format(file_obj):
+    """Peek at *file_obj* and return a :class:`QSpiceFileParser` if it matches.
+
+    Scans for a ``.prot`` marker line, then resets the stream position.
+    Returns ``None`` when no QSPICE protected block is found.
+
+    QSPICE model files use the Windows-1252 code page (see qspice.md Section
+    5.2), unlike the LTspice and PSpice formats, which the shared reader decodes
+    as UTF-8.  When a ``.prot`` block is detected, the reader is switched to
+    CP1252 so that high-bit characters in plaintext (passthrough) lines decode
+    correctly; the protected-block payload itself is ASCII glyphs either way.
+    """
+    from spice_crypt.qspice.decrypt import QSpiceFileParser, _detect_qspice_format
+
+    if _detect_qspice_format(file_obj):
+        reconfigure = getattr(file_obj, "reconfigure", None)
+        if reconfigure is not None:
+            with contextlib.suppress(ValueError, io.UnsupportedOperation):
+                reconfigure(encoding="cp1252", errors="replace")
+        return QSpiceFileParser(file_obj)
+    return None
+
+
 def _run_decrypt_generator(gen, output_file, stack):
     """Drive a parser's ``decrypt_stream`` generator, writing output.
 
@@ -91,8 +114,9 @@ def decrypt_stream(
     Stream decrypt data from input_file to output_file.
 
     Supports the text-based hex/DES format, the Binary File format
-    (both LTspice), and PSpice encrypted formats.  When *is_ltspice_file*
-    is ``None`` (the default), the format is auto-detected.
+    (both LTspice), PSpice encrypted formats, and QSPICE ``.prot``
+    protected blocks.  When *is_ltspice_file* is ``None`` (the default),
+    the format is auto-detected.
 
     Args:
         input_file: File object or path to read from
@@ -147,6 +171,12 @@ def decrypt_stream(
             if parser is not None:
                 return _run_decrypt_generator(parser.decrypt_stream(), output_file, stack)
 
+        # Try QSPICE (.prot) format detection (text-mode, seekable)
+        if is_ltspice_file is None and hasattr(input_file, "seek"):
+            parser = _try_qspice_format(input_file)
+            if parser is not None:
+                return _run_decrypt_generator(parser.decrypt_stream(), output_file, stack)
+
         # Auto-detect if file is in LTspice format if not specified
         if is_ltspice_file is None:
             is_ltspice_file = _detect_ltspice_format(input_file)
@@ -161,8 +191,12 @@ def decrypt(data, is_ltspice_file=None):
     """
     Decrypts encrypted data.
 
+    Supports the LTspice text-based/raw-hex and PSpice text formats and
+    QSPICE ``.prot`` protected blocks (the in-memory path does not cover the
+    LTspice Binary File format or PSpice Mode 4 with a user key).
+
     Args:
-        data: String containing encrypted data, either raw hex or LTspice file format
+        data: String containing encrypted data (LTspice text/raw hex, PSpice, or QSPICE ``.prot``)
         is_ltspice_file: Boolean indicating if the data is in LTspice file format.
                          If None, auto-detect based on content.
 

@@ -18,7 +18,7 @@ from pathlib import Path
 import pytest
 
 from spice_crypt import decrypt_stream
-from spice_crypt.pspice.decrypt import PSpiceFileParser
+from spice_crypt.pspice.decrypt import PSpiceFileParser, _split_block
 from tests.conftest import PLAINTEXT_BODY, extract_body
 
 DATA_DIR = Path(__file__).parent / "data" / "pspice"
@@ -105,6 +105,116 @@ class TestPSpiceFileParser:
             chunks = list(parser.decrypt_stream())
         text = b"".join(chunks).decode("utf-8", "replace")
         assert "R1 1 2 1k" in text
+
+
+# ---------------------------------------------------------------------------
+# Block splitting and multi-block line continuation
+# ---------------------------------------------------------------------------
+
+
+def _block(payload62: bytes, b62: int, b63: int) -> bytes:
+    """Assemble a 64-byte decrypted block from its payload and trailing bytes."""
+    assert len(payload62) == 62
+    return payload62 + bytes([b62, b63])
+
+
+class TestSplitBlock:
+    """Byte-level behaviour of ``_split_block`` for every padding layout.
+
+    Regression coverage for the bug where padding-sentinel fragments
+    (`` $jbs``, `` $jb``, …) leaked into the output and long/continued
+    lines were reconstructed with wrong line breaks.
+    """
+
+    def test_full_sentinel_no_cr(self):
+        # Short LF-source line: full sentinel within the payload.
+        block = _block((b"R1 1 2 1k" + b" $jbs$").ljust(62, b"A"), ord("A"), 0)
+        assert _split_block(block) == (b"R1 1 2 1k", True)
+
+    def test_full_sentinel_with_cr(self):
+        # CRLF-source line: the carriage return precedes the sentinel and is kept.
+        block = _block((b"R1 1 2 1k\r" + b" $jbs$").ljust(62, b"A"), ord("A"), 0)
+        assert _split_block(block) == (b"R1 1 2 1k\r", True)
+
+    def test_truncated_sentinel_no_cr(self):
+        # Sentinel straddles the boundary: only `` $jb`` survives, byte 62 == 's'.
+        block = _block(b"A" * 58 + b" $jb", ord("s"), 0)
+        assert _split_block(block) == (b"A" * 58, True)
+
+    def test_cr_in_payload_with_truncated_sentinel(self):
+        # CRLF line whose trailing sentinel is truncated: cut at the carriage return.
+        block = _block(b"A" * 57 + b"\r" + b" $jb", ord("s"), 0)
+        assert _split_block(block) == (b"A" * 57 + b"\r", True)
+
+    def test_cr_at_byte_62(self):
+        # Content fills the payload exactly; terminator lands in byte 62.
+        block = _block(b"A" * 62, ord("\r"), 0)
+        assert _split_block(block) == (b"A" * 62 + b"\r", True)
+
+    def test_cr_at_byte_63(self):
+        # Content plus terminator fills all 64 bytes; terminator in byte 63.
+        block = _block(b"A" * 62, ord("1"), ord("\r"))
+        assert _split_block(block) == (b"A" * 62 + b"1\r", True)
+
+    def test_overflow_block(self):
+        # 62 content bytes followed by the ``$+`` overflow marker — line continues.
+        block = _block(b"A" * 62, ord("$"), ord("+"))
+        assert _split_block(block) == (b"A" * 62, False)
+
+    def test_overflow_marker_beats_truncated_sentinel(self):
+        # A payload tail that looks like a sentinel prefix is NOT padding when the
+        # ``$+`` overflow marker is present; the block still continues the line.
+        block = _block(b"A" * 58 + b" $jb", ord("$"), ord("+"))
+        assert _split_block(block) == (b"A" * 58 + b" $jb", False)
+
+
+class TestLineContinuation:
+    """End-to-end multi-block continuation via a DES (mode 0) round trip."""
+
+    @staticmethod
+    def _encrypt_fixture(lines: list[bytes]) -> str:
+        """Encode *lines* the way PSpiceEnc would and wrap them in markers.
+
+        Each source line is terminated with a carriage return and packed into
+        64-byte blocks (overflow blocks marked ``$+``, the final block padded
+        with the `` $jbs$`` sentinel), then encrypted with the mode-0 DES key.
+        """
+        from spice_crypt.pspice.des import PSpiceDES
+        from spice_crypt.pspice.keys import derive_keys
+
+        short_key, _ = derive_keys(0, "", None)
+        cipher = PSpiceDES()
+        cipher.set_key(short_key)
+
+        def final_block(content: bytes) -> bytes:
+            payload = (content + b" $jbs$").ljust(62, b"A")[:62]
+            assert b" $jbs$" in payload  # content short enough to hold the sentinel
+            return payload + b"A\x00"
+
+        blocks = [b"H" * 64]  # header block (skipped during decryption)
+        for line in lines:
+            data = line + b"\r"
+            while len(data) > 62:
+                blocks.append(data[:62] + b"$+")  # overflow marker
+                data = data[62:]
+            blocks.append(final_block(data))
+
+        hex_lines = [cipher.process_block(b, decrypt=False).hex() for b in blocks]
+        return "$CDNENCSTART\r\n" + "\r\n".join(hex_lines) + "\r\n$CDNENCFINISH\r\n"
+
+    def test_roundtrip_overflow_and_plus_lines(self):
+        import io
+
+        lines = [
+            b"X_LONG_INST n1 n2 n3 n4 n5 n6 n7 n8 SOME_LONG_MODEL_NAME_HERE_END",
+            b"+ AREA=1 TEMP=27",  # SPICE continuation line — must be preserved verbatim
+            b"R1 1 2 1k",
+        ]
+        fixture = self._encrypt_fixture(lines)
+        chunks = list(PSpiceFileParser(io.StringIO(fixture)).decrypt_stream())
+        out = b"".join(chunks).decode()
+        assert out == "".join(line.decode() + "\r\n" for line in lines)
+        assert "$jb" not in out  # no padding-sentinel fragments leaked
 
 
 # ---------------------------------------------------------------------------

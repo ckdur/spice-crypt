@@ -1,6 +1,6 @@
 # SpiceCrypt
 
-A Python library and CLI tool for decrypting encrypted SPICE model files.  SpiceCrypt supports LTspice® and PSpice® encryption formats with automatic format detection, enabling engineers to use lawfully obtained models in any simulator.
+A Python library and CLI tool for decrypting encrypted SPICE model files.  SpiceCrypt supports LTspice®, PSpice®, and QSPICE® encryption formats with automatic format detection, enabling engineers to use lawfully obtained models in any simulator.
 
 ## Features
 
@@ -8,6 +8,7 @@ A Python library and CLI tool for decrypting encrypted SPICE model files.  Spice
 - **LTspice Binary File format** — Two-layer XOR stream cipher identified by the `<Binary File>` signature
 - **PSpice Modes 0–5** — Custom DES (modes 0–2) and AES-256 ECB (modes 3–5) with `$CDNENCSTART`/`$CDNENCFINISH` delimited blocks
 - **PSpice Mode 4 key recovery** — Brute-force recovery of the user-supplied encryption key via a hardware-accelerated Rust extension (AES-NI / ARM Crypto)
+- **QSPICE protected blocks** — `.prot`/`.unprot` sub-circuit protection: randomized base-16 encoding, a seed-keyed dual stream cipher, DEFLATE compression, and Windows-1252 keyword detokenization
 - **Automatic format detection** — All formats are detected and handled transparently
 - **Streaming API** — Memory-efficient processing for large files
 - **No runtime dependencies** — Pure Python with an optional compiled Rust extension for key recovery
@@ -94,7 +95,7 @@ Key recovery exploits a bug in PSpice's key derivation that reduces the effectiv
 
 ### `decrypt_stream(input_file, output_file=None, is_ltspice_file=None, user_key=None)`
 
-Stream-decrypt from a file path or file object.  Supports all LTspice and PSpice formats with automatic detection.
+Stream-decrypt from a file path or file object.  Supports all LTspice, PSpice, and QSPICE formats with automatic detection.
 
 ```python
 from spice_crypt import decrypt_stream
@@ -119,11 +120,11 @@ plaintext, _ = decrypt_stream("encrypted.lib", user_key=b"mykey")
 - `is_ltspice_file` (bool, optional) — Whether the data is in LTspice format.  If `True`, skip PSpice detection; if `False`, treat as raw hex.  Auto-detected if `None`.
 - `user_key` (bytes, optional) — User key bytes for PSpice Mode 4 decryption.
 
-**Returns:** `(content, (v1, v2))` — `content` is the decrypted string if no output file was given, otherwise `None`.  `(v1, v2)` are format-specific verification values: CRC-based checksums for LTspice text format, CRC-32 and rotate-left hash for Binary File format, or `(0, 0)` for PSpice format.
+**Returns:** `(content, (v1, v2))` — `content` is the decrypted string if no output file was given, otherwise `None`.  `(v1, v2)` are format-specific verification values: CRC-based checksums for LTspice text format, CRC-32 and rotate-left hash for Binary File format, `(0, 0)` for PSpice format, or `(block_count, 0)` for QSPICE format (the number of protected blocks decrypted).
 
 ### `decrypt(data, is_ltspice_file=None)`
 
-Decrypt an in-memory string of encrypted data.  Supports LTspice text-based format, raw hex, and PSpice text-based formats (but not Binary File format or PSpice Mode 4 with a user key).
+Decrypt an in-memory string of encrypted data.  Supports LTspice text-based format, raw hex, PSpice text-based formats, and QSPICE `.prot` protected blocks (but not Binary File format or PSpice Mode 4 with a user key).
 
 ```python
 from spice_crypt import decrypt
@@ -147,9 +148,11 @@ The following classes are exported for direct use:
 - `LTspiceFileParser` — Text-based DES format parser
 - `BinaryFileParser` — Binary File format parser
 - `PSpiceFileParser` — PSpice format parser (modes 0–5)
+- `QSpiceFileParser` — QSPICE `.prot` protected-block parser
 - `CryptoState` — LTspice DES key derivation and per-block decryption
 - `LTspiceDES` — LTspice custom DES variant
 - `PSpiceDES` — PSpice custom DES variant
+- `QSpiceCipher` — QSPICE `.prot` decode, decrypt, inflate, and detokenize primitives
 
 ## Supported Formats
 
@@ -175,6 +178,10 @@ Encrypted regions are delimited by `$CDNENCSTART` / `$CDNENCFINISH` markers with
 
 Modes 0–3 and 5 use key material derived entirely from constants in the PSpice binary.  Mode 4 incorporates a user-supplied key, but a bug in the key derivation passes only the short key to the AES engine instead of the extended key, leaving just 4 bytes unknown and reducing the effective keyspace to 2^32.  This makes the key recoverable by brute force.
 
+### QSPICE Protected Blocks
+
+QSPICE protects sub-circuit bodies with a `.prot` … `.unprot` block embedded in otherwise plaintext model files.  The payload is a randomized base-16 text encoding in which each plaintext byte becomes two glyphs from a fixed 64-character alphabet.  A 32-bit seed, stored in the clear at the start of the block, keys two XOR keystreams — a Mersenne Twister stream and an additive walk over a fixed 9973-byte table — that together decrypt a DEFLATE (zlib) stream.  The inflated netlist is stored in the Windows-1252 code page, in which QSPICE's special device prefixes and operators (`Ã`, `Ø`, `¥`, `€`, `£`, `×`, `«`, `»`, `´`, `µ`) are high-bit bytes; SpiceCrypt decodes these to text and rewrites the micro sign `µ` to the ASCII `u` that other tools expect.  Decryption replaces each protected block with the recovered plaintext, leaving surrounding lines unchanged.  Because the seed is the only key material and is stored alongside the ciphertext, the scheme provides obfuscation rather than cryptographic protection.
+
 ## Specifications
 
 Detailed technical documentation of the encryption schemes:
@@ -182,6 +189,7 @@ Detailed technical documentation of the encryption schemes:
 - [SPECIFICATIONS/ltspice.md](SPECIFICATIONS/ltspice.md) — LTspice encryption: key derivation, DES variant, stream cipher, and Binary File format
 - [SPECIFICATIONS/pspice.md](SPECIFICATIONS/pspice.md) — PSpice encryption: modes 0–5, custom DES, AES-256 ECB, and key derivation
 - [SPECIFICATIONS/pspice-attack-summary.md](SPECIFICATIONS/pspice-attack-summary.md) — PSpice Mode 4 key derivation bug and brute-force key recovery
+- [SPECIFICATIONS/qspice.md](SPECIFICATIONS/qspice.md) — QSPICE `.prot` protected blocks: base-16 encoding, seed-keyed dual stream cipher, DEFLATE compression, and Windows-1252 keyword tokenization
 
 ## Purpose and Legal Basis
 
@@ -202,16 +210,17 @@ SpiceCrypt is intended solely for enabling simulator interoperability with lawfu
 
 ## Research Contributors
 
-- **Joe T. Sylve, Ph.D.** — Reverse engineering and documentation of the LTspice text-based DES encryption format and PSpice encryption modes.
+- **Joe T. Sylve, Ph.D.** — Reverse engineering and documentation of the LTspice text-based DES encryption format, PSpice encryption modes, and QSPICE `.prot` protected blocks.
 - **Lucas Gerads** — Reverse engineering and documentation of the LTspice Binary File encryption format.
 
 ## Trademarks
 
 LTspice® is a registered trademark of Analog Devices, Inc.\
-PSpice® is a registered trademark of Cadence Design Systems, Inc.
+PSpice® is a registered trademark of Cadence Design Systems, Inc.\
+QSPICE® is a registered trademark of Qorvo US, Inc.
 
 ## License
 
 This project is licensed under the [GNU Affero General Public License v3.0 or later](LICENSES/AGPL-3.0-or-later.txt).
 
-Copyright (c) 2025-2026 Joe T. Sylve, Ph.D.
+Copyright (c) 2025–2026 Joe T. Sylve, Ph.D.
