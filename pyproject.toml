@@ -4,7 +4,7 @@
 
 [project]
 name = "spice-crypt"
-version = "3.0.1"
+version = "3.0.3"
 description = "A library for decrypting LTspice®, PSpice®, and QSPICE® encrypted files"
 readme = "README.md"
 requires-python = ">=3.10"
