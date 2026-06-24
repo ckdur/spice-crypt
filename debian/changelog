@@ -1,3 +1,10 @@
+spice-crypt (3.0.3-1) unstable; urgency=medium
+
+  * New upstream version 3.0.3
+  * d/patches: refresh patches for new upstream release
+
+ -- Christopher Obbard <obbardc@debian.org>  Wed, 24 Jun 2026 05:30:32 +0100
+
 spice-crypt (3.0.1-1) unstable; urgency=medium
 
   * New upstream version 3.0.1
