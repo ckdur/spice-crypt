@@ -1,1 +1,2 @@
 0001-debian-patches-drop-Windows-only-pyo3-generate-impor.patch
+0002-relax-pyo3-dependency.patch
