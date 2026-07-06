@@ -35,6 +35,6 @@ ifeq (,$(filter nodoc,$(DEB_BUILD_OPTIONS)))
 	help2man --no-info \
 		--name='Tool to decrypt encrypted SPICE model files' \
 		--version-string='$(DEB_VERSION_UPSTREAM)' \
-		$(BUILT_SPICE_CRYPT) \
-		> spice-crypt.1
+		--output=debian/spice-crypt.1 \
+		$(BUILT_SPICE_CRYPT)
 endif
