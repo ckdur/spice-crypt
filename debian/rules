@@ -25,6 +25,8 @@ override_dh_auto_configure:
 		'[source.debian]' \
 		'directory = "/usr/share/cargo/registry"' \
 		> .cargo/config.toml
+	# The upstream Cargo.lock pins crates.io checksums that do not match the
+	# Debian registry so the lock file must be regenerated against it.
 	rm -f Cargo.lock
 	cargo generate-lockfile --offline
 
