@@ -1,5 +1,4 @@
 Version: 5
 
-Template: GitHub
-Owner: jtsylve
-Project: spice-crypt
+# Upstream is no longer available or publishing releases.
+# See debian/README.source for details.
