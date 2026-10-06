@@ -15,7 +15,8 @@ import contextlib
 import io
 import os
 
-from spice_crypt.ltspice.binary_file import BinaryFileParser
+from spice_crypt.ltspice.binary_file import BinaryFileParser as LTspiceBinaryFileParser
+from spice_crypt.hspice.binary_file import BinaryFileParser as HspiceBinaryFileParser
 from spice_crypt.ltspice.decrypt import LTspiceFileParser, _detect_ltspice_format
 
 
@@ -29,8 +30,10 @@ def _try_binary_file(stream):
     pos = stream.tell()
     header = stream.read(20)
     stream.seek(pos)
-    if BinaryFileParser.check_signature(header):
-        return BinaryFileParser(stream)
+    if LTspiceBinaryFileParser.check_signature(header):
+        return LTspiceBinaryFileParser(stream)
+    if HspiceBinaryFileParser.check_signature(header):
+        return HspiceBinaryFileParser(stream)
     return None
 
 

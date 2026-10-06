@@ -11,7 +11,7 @@ encrypted header block always decrypts to ``"0001.0000 "`` in the first
 10 bytes, providing a known-plaintext crib for validating candidates.
 
 The Rust extension ``_aes_brute`` (compiled at install time via
-maturin) provides hardware-accelerated AES and rayon parallelism
+setuptools-rust) provides hardware-accelerated AES and rayon parallelism
 across all cores, completing the search in seconds.
 """
 

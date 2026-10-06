@@ -42,12 +42,12 @@ dev = [
 ]
 
 [build-system]
-requires = ["maturin>=1,<2"]
-build-backend = "maturin"
+requires = ["setuptools>=68", "setuptools-rust>=1.10", "wheel"]
+build-backend = "setuptools.build_meta"
 
-[tool.maturin]
-module-name = "spice_crypt.pspice._aes_brute"
-python-source = "."
+[tool.setuptools.packages.find]
+include = ["spice_crypt*"]
+exclude = ["tests*"]
 
 [tool.pytest.ini_options]
 addopts = "-p no:cacheprovider"

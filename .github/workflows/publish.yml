@@ -15,87 +15,71 @@ permissions:
 jobs:
   # ---------------------------------------------------------------------------
   # Build wheels for each platform
+  #
+  # cibuildwheel drives the setuptools build in setup.py, which compiles both
+  # the C extension (spice_crypt.hspice._pyisaac) and the Rust extension
+  # (spice_crypt.pspice._aes_brute, via setuptools-rust).  The C extension is
+  # not abi3, so one wheel is built per CPython version.
   # ---------------------------------------------------------------------------
 
-  linux:
-    name: Linux (${{ matrix.target }})
-    runs-on: ${{ matrix.runner }}
+  wheels:
+    name: Wheels (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        include:
-          - target: x86_64-unknown-linux-gnu
-            runner: ubuntu-latest
-          - target: aarch64-unknown-linux-gnu
-            runner: ubuntu-latest
-          - target: x86_64-unknown-linux-musl
-            runner: ubuntu-latest
-          - target: aarch64-unknown-linux-musl
-            runner: ubuntu-latest
+        os:
+          - ubuntu-latest      # Linux x86_64 (manylinux + musllinux)
+          - ubuntu-24.04-arm   # Linux aarch64 (manylinux + musllinux)
+          - macos-15-intel     # macOS x86_64
+          - macos-15           # macOS arm64
+          - windows-latest     # Windows x86_64
+          - windows-11-arm     # Windows arm64
     steps:
       - uses: actions/checkout@v6
-      - uses: PyO3/maturin-action@v1
-        with:
-          target: ${{ matrix.target }}
-          args: --release --locked --out dist
-          manylinux: auto
-      - uses: actions/upload-artifact@v7
-        with:
-          name: wheels-linux-${{ matrix.target }}
-          path: dist/
 
-  macos:
-    name: macOS (${{ matrix.target }})
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      matrix:
-        include:
-          - target: x86_64-apple-darwin
-            runner: macos-15      # cross-compile to Intel
-          - target: aarch64-apple-darwin
-            runner: macos-15      # Apple Silicon runner
-    steps:
-      - uses: actions/checkout@v6
-      - uses: PyO3/maturin-action@v1
-        with:
-          target: ${{ matrix.target }}
-          args: --release --locked --out dist
-      - uses: actions/upload-artifact@v7
-        with:
-          name: wheels-macos-${{ matrix.target }}
-          path: dist/
+      # Linux builds run inside manylinux/musllinux containers and install Rust
+      # there (CIBW_BEFORE_ALL_LINUX); macOS and Windows build on the host.
+      - name: Install Rust toolchain
+        if: runner.os != 'Linux'
+        uses: dtolnay/rust-toolchain@stable
 
-  windows:
-    name: Windows (${{ matrix.target }})
-    runs-on: windows-latest
-    strategy:
-      matrix:
-        include:
-          - target: x86_64-pc-windows-msvc
-          - target: aarch64-pc-windows-msvc
-    steps:
-      - uses: actions/checkout@v6
-      - uses: PyO3/maturin-action@v1
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v3.2
+        env:
+          CIBW_BUILD: "cp310-* cp311-* cp312-* cp313-* cp314-*"
+          CIBW_ARCHS: native
+          CIBW_BEFORE_ALL_LINUX: curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+          CIBW_ENVIRONMENT_LINUX: PATH="$HOME/.cargo/bin:$PATH"
+          CIBW_TEST_COMMAND: >-
+            python -c "import spice_crypt, spice_crypt.hspice._pyisaac, spice_crypt.pspice._aes_brute"
         with:
-          target: ${{ matrix.target }}
-          args: --release --locked --out dist
+          output-dir: dist
+
       - uses: actions/upload-artifact@v7
         with:
-          name: wheels-windows-${{ matrix.target }}
-          path: dist/
+          name: wheels-${{ matrix.os }}
+          path: dist/*.whl
 
   sdist:
     name: Source distribution
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: PyO3/maturin-action@v1
+
+      - uses: actions/setup-python@v5
         with:
-          command: sdist
-          args: --out dist
+          python-version: "3.x"
+
+      - name: Build sdist
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build --sdist --outdir dist
+
       - uses: actions/upload-artifact@v7
         with:
           name: wheels-sdist
-          path: dist/
+          path: dist/*.tar.gz
 
   # ---------------------------------------------------------------------------
   # Publish all wheels + sdist to PyPI
@@ -103,7 +87,7 @@ jobs:
 
   publish-pypi:
     name: Publish to PyPI
-    needs: [linux, macos, windows, sdist]
+    needs: [wheels, sdist]
     if: github.event_name == 'release'
     runs-on: ubuntu-latest
     environment:

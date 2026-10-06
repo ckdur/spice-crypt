@@ -21,24 +21,16 @@ Install from [PyPI](https://pypi.org/project/spice-crypt/):
 pip install spice-crypt
 ```
 
-Or with [uv](https://docs.astral.sh/uv/):
+Or locally...
 
 ```bash
-uv tool install spice-crypt
-```
-
-Or add as a dependency to an existing project:
-
-```bash
-uv add spice-crypt
+pip install .
 ```
 
 ### Updating
 
 ```bash
 pip install --upgrade spice-crypt    # pip
-uv tool upgrade spice-crypt          # uv tool
-uv lock --upgrade-package spice-crypt # uv project dependency
 ```
 
 ## Requirements
@@ -52,9 +44,6 @@ uv lock --upgrade-package spice-crypt # uv project dependency
 SpiceCrypt provides the `spice-crypt` command.  All encryption formats are auto-detected.
 
 ```bash
-# Run directly without installing
-uvx spice-crypt path/to/encrypted_file.lib
-
 # Decrypt to stdout
 spice-crypt path/to/encrypted_file.lib
 

@@ -1,3 +1,0 @@
-# Upstream is no longer available and does not publish releases.
-# Therefore, there is no useful location for uscan to monitor.
-spice-crypt source: debian-watch-file-is-missing

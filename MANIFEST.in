@@ -1,0 +1,15 @@
+# SPDX-FileCopyrightText: © 2026 Ckristian Duran. <ckdur.iso@gmail.com>
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+# Sources for the compiled extensions (see setup.py)
+include Cargo.toml Cargo.lock
+include spice_crypt/pspice/_aes_brute.rs
+include spice_crypt/hspice/*.c spice_crypt/hspice/*.h
+
+include REUSE.toml
+recursive-include LICENSES *.txt
+recursive-include SPECIFICATIONS *.md
+recursive-include tests *.py *.lib *.mdl
+
+global-exclude *.so *.pyd *.dll __pycache__ *.py[cod]

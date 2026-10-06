@@ -9,10 +9,11 @@ SpiceCrypt - A library for decrypting LTspice®, PSpice®, and QSPICE® encrypte
 from importlib.metadata import version
 
 from spice_crypt.decrypt import decrypt, decrypt_stream
-from spice_crypt.ltspice.binary_file import BinaryFileParser
+from spice_crypt.ltspice.binary_file import BinaryFileParser as LTspiceBinaryFileParser
 from spice_crypt.ltspice.crypto_state import CryptoState
 from spice_crypt.ltspice.decrypt import LTspiceFileParser
 from spice_crypt.ltspice.des import LTspiceDES
+from spice_crypt.hspice.binary_file import BinaryFileParser as HspiceBinaryFileParser
 from spice_crypt.pspice.decrypt import PSpiceFileParser
 from spice_crypt.pspice.des import PSpiceDES
 from spice_crypt.qspice.cipher import QSpiceCipher
@@ -21,7 +22,8 @@ from spice_crypt.qspice.decrypt import QSpiceFileParser
 __version__ = version("spice-crypt")
 
 __all__ = [
-    "BinaryFileParser",
+    "LTspiceBinaryFileParser",
+    "HspiceBinaryFileParser",
     "CryptoState",
     "LTspiceDES",
     "LTspiceFileParser",

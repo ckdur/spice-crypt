@@ -1,6 +1,0 @@
-## Cargo.lock is regenerated at build time against the Debian crate
-## registry (see debian/rules override_dh_auto_configure) and a local
-## .cargo/config.toml is written to point cargo at it. Neither can be
-## represented as a quilt patch so ignore these files when building the
-## source package.
-extend-diff-ignore = "^(Cargo\.lock|\.cargo/)"
