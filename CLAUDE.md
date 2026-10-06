@@ -12,8 +12,8 @@ SpiceCrypt: a Python library + `spice-crypt` CLI that decrypts encrypted SPICE m
 # Dev environment: plain pip venv in .venv/ (the project does not use uv)
 python3 -m venv .venv
 .venv/bin/pip install --group dev        # pytest, ruff, pre-commit (PEP 735 group)
-.venv/bin/pip install -e .               # builds the C and Rust extensions
-.venv/bin/python setup.py build_ext --inplace   # rebuild extensions after C/Rust edits
+.venv/bin/pip install -e .               # builds the Rust extension
+.venv/bin/python setup.py build_ext --inplace   # rebuild the extension after Rust edits
 
 # Tests
 .venv/bin/python -m pytest tests/ -v
@@ -35,12 +35,11 @@ cargo clippy -- -D warnings
 
 ## Build system
 
-The build backend was switched from maturin to **setuptools + setuptools-rust** so that a C extension can be built alongside the Rust one. [setup.py](setup.py) defines both:
+The build backend is **setuptools + setuptools-rust** (not maturin). [setup.py](setup.py) defines the one compiled extension:
 
 - `spice_crypt.pspice._aes_brute` — Rust/PyO3 (`Cargo.toml` points its `[lib]` at [spice_crypt/pspice/_aes_brute.rs](spice_crypt/pspice/_aes_brute.rs)). Optional at runtime; only needed for Mode 4 key recovery.
-- `spice_crypt.hspice._pyisaac` — C extension wrapping ISAAC (`_pyisaac.c`, `rand.c`).
 
-CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) builds with `pip install -e .`. The release workflow ([.github/workflows/publish.yml](.github/workflows/publish.yml)) builds wheels with cibuildwheel and the sdist with `python -m build`. [MANIFEST.in](MANIFEST.in) is required to ship the Rust/C sources and `Cargo.toml` in the sdist (maturin used to do this implicitly); update it when adding extension sources.
+CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) builds with `pip install -e .`. The release workflow ([.github/workflows/publish.yml](.github/workflows/publish.yml)) builds wheels with cibuildwheel and the sdist with `python -m build`. [MANIFEST.in](MANIFEST.in) is required to ship the Rust source and `Cargo.toml` in the sdist (maturin used to do this implicitly); update it when adding extension sources.
 
 ## Architecture
 

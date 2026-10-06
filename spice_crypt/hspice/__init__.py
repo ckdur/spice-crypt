@@ -4,11 +4,12 @@
 
 """hspice encryption format support."""
 
-from spice_crypt.ltspice.binary_file import BinaryFileParser
+from spice_crypt.hspice.binary_file import BinaryFileParser
+from spice_crypt.hspice.des import HspiceDES
+from spice_crypt.hspice.isaac import Isaac
 
 __all__ = [
     "BinaryFileParser",
-    "random",
-    "randuint32",
-    "seed",  # The pyisaac module functions
+    "HspiceDES",
+    "Isaac",
 ]

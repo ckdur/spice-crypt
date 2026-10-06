@@ -2,10 +2,9 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-# Sources for the compiled extensions (see setup.py)
+# Source for the compiled Rust extension (see setup.py)
 include Cargo.toml Cargo.lock
 include spice_crypt/pspice/_aes_brute.rs
-include spice_crypt/hspice/*.c spice_crypt/hspice/*.h
 
 include REUSE.toml
 recursive-include LICENSES *.txt

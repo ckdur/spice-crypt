@@ -16,10 +16,8 @@ jobs:
   # ---------------------------------------------------------------------------
   # Build wheels for each platform
   #
-  # cibuildwheel drives the setuptools build in setup.py, which compiles both
-  # the C extension (spice_crypt.hspice._pyisaac) and the Rust extension
-  # (spice_crypt.pspice._aes_brute, via setuptools-rust).  The C extension is
-  # not abi3, so one wheel is built per CPython version.
+  # cibuildwheel drives the setuptools build in setup.py, which compiles the
+  # Rust extension (spice_crypt.pspice._aes_brute, via setuptools-rust).
   # ---------------------------------------------------------------------------
 
   wheels:
@@ -52,7 +50,7 @@ jobs:
           CIBW_BEFORE_ALL_LINUX: curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
           CIBW_ENVIRONMENT_LINUX: PATH="$HOME/.cargo/bin:$PATH"
           CIBW_TEST_COMMAND: >-
-            python -c "import spice_crypt, spice_crypt.hspice._pyisaac, spice_crypt.pspice._aes_brute"
+            python -c "import spice_crypt, spice_crypt.pspice._aes_brute"
         with:
           output-dir: dist
 
