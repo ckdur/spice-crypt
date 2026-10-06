@@ -4,8 +4,7 @@ import warnings
 
 from . import _pyisaac
 
-
-__all__ = ('random', 'randuint32', 'seed')
+__all__ = ("random", "randuint32", "seed")
 
 
 def seed(sd=None):
@@ -21,8 +20,10 @@ def seed(sd=None):
             sd = os.urandom(_pyisaac.RANDSIZB)
         except NotImplementedError:
             sd = str(time.time())
-            warnings.warn('Algorithm seeded from system time, not suitable '
-                          'for cryptographic use!')
+            warnings.warn(
+                "Algorithm seeded from system time, not suitable for cryptographic use!",
+                stacklevel=2,
+            )
 
     _pyisaac.seed(sd)
 

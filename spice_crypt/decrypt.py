@@ -15,8 +15,8 @@ import contextlib
 import io
 import os
 
-from spice_crypt.ltspice.binary_file import BinaryFileParser as LTspiceBinaryFileParser
 from spice_crypt.hspice.binary_file import BinaryFileParser as HspiceBinaryFileParser
+from spice_crypt.ltspice.binary_file import BinaryFileParser as LTspiceBinaryFileParser
 from spice_crypt.ltspice.decrypt import LTspiceFileParser, _detect_ltspice_format
 
 

@@ -8,5 +8,7 @@ from spice_crypt.ltspice.binary_file import BinaryFileParser
 
 __all__ = [
     "BinaryFileParser",
-    'random', 'randuint32', 'seed',  # The pyisaac module functions
+    "random",
+    "randuint32",
+    "seed",  # The pyisaac module functions
 ]

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repo is
 
-SpiceCrypt: a Python library + `spice-crypt` CLI that decrypts encrypted SPICE model files (LTspice, PSpice, QSPICE, and an in-progress HSPICE format). This checkout is the **Debian packaging fork** (branch `debian/unstable`, gbp with `upstream/latest`). The upstream GitHub project is gone, so the package is maintained from the last upstream snapshot plus local changes.
+SpiceCrypt: a Python library + `spice-crypt` CLI that decrypts encrypted SPICE model files (LTspice, PSpice, QSPICE, and an in-progress HSPICE format). This is a fork of the original upstream project (no longer available), extended with HSPICE support; it does not use uv or maturin.
 
 ## Commands
 
@@ -33,11 +33,9 @@ cargo clippy -- -D warnings
 .venv/bin/spice-crypt --recover-key path/to/mode4.lib   # PSpice Mode 4 brute force (needs Rust ext)
 ```
 
-The Debian package builds with `dh --buildsystem=pybuild` ([debian/rules](debian/rules)); it vendors crates offline from `/usr/share/cargo/registry` and regenerates `Cargo.lock`. Quilt patches live in [debian/patches/](debian/patches/).
-
 ## Build system
 
-The build backend was switched from maturin to **setuptools + setuptools-rust** (uncommitted on this branch) so that a C extension can be built alongside the Rust one. [setup.py](setup.py) defines both:
+The build backend was switched from maturin to **setuptools + setuptools-rust** so that a C extension can be built alongside the Rust one. [setup.py](setup.py) defines both:
 
 - `spice_crypt.pspice._aes_brute` — Rust/PyO3 (`Cargo.toml` points its `[lib]` at [spice_crypt/pspice/_aes_brute.rs](spice_crypt/pspice/_aes_brute.rs)). Optional at runtime; only needed for Mode 4 key recovery.
 - `spice_crypt.hspice._pyisaac` — C extension wrapping ISAAC (`_pyisaac.c`, `rand.c`).
@@ -64,7 +62,7 @@ Every detector must restore the stream position after peeking.
 
 ## Conventions
 
-- Every file needs an SPDX header (`SPDX-FileCopyrightText` + `SPDX-License-Identifier: AGPL-3.0-or-later`); REUSE compliance is checked in CI/pre-commit. Non-source files are covered via [REUSE.toml](REUSE.toml).
+- Every file needs SPDX copyright and license tags (AGPL-3.0-or-later for code) in its header comment; REUSE compliance is checked in CI/pre-commit (`reuse lint`). Files that cannot carry a header are annotated in [REUSE.toml](REUSE.toml).
 - QSPICE files intentionally contain Windows-1252 glyphs (`Ã Ø ¥ × « » ´ µ`); ruff's RUF001-003 are disabled for those files only.
 - [scripts/check_version.py](scripts/check_version.py) enforces that the "Development Status" classifier matches the version in `pyproject.toml`.
 - Test fixtures are generated (e.g. [scripts/gen_qspice_testdata.py](scripts/gen_qspice_testdata.py)); tests compare decrypted bodies against `PLAINTEXT_BODY` in [tests/conftest.py](tests/conftest.py).

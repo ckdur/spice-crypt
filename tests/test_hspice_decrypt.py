@@ -11,9 +11,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from spice_crypt import decrypt_stream
 from spice_crypt.hspice.binary_file import BinaryFileParser
-from tests.conftest import PLAINTEXT_BODY, extract_body
 
 DATA_DIR = Path(__file__).parent / "data"
 
@@ -23,8 +21,9 @@ class TestHspiceDecryption:
 
     def test_parse_hspice(self):
         # TODO: Not implemented yet
-        #content, _ = decrypt_stream(str(DATA_DIR / "hspice" / "nhvt.mdl"))
+        # content, _ = decrypt_stream(str(DATA_DIR / "hspice" / "nhvt.mdl"))
         assert True
+
 
 class TestHspiceFileParser:
     """Test the HspiceFileParser class directly."""
@@ -37,8 +36,8 @@ class TestHspiceFileParser:
             assert isinstance(parser, BinaryFileParser)
 
     def test_parser_stream(self):
-        #with open(DATA_DIR / "hspice" / "nhvt.mdl", "rb") as f:
+        # with open(DATA_DIR / "hspice" / "nhvt.mdl", "rb") as f:
         #    parser = BinaryFileParser(f)
         #    chunks = list(parser.decrypt_stream())
-        #text = b"".join(chunks).decode("utf-8", "replace")
-        assert True # TODO: Not implemented yet
+        # text = b"".join(chunks).decode("utf-8", "replace")
+        assert True  # TODO: Not implemented yet
